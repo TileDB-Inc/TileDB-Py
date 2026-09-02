@@ -869,7 +869,21 @@ class Array:
                             attr_val = np.nan_to_num(values[i])
                     else:
                         attr_val = values[i]
-                    buffer, offsets = array_to_buffer(attr_val, True, False)
+
+                    # Numpy coalesces equal-length sub-arrays into N-D
+                    if (
+                        attr_val.ndim > 1
+                        and attr_val.size > 0
+                        and not isinstance(attr_val.flat[0], (np.ndarray, str, bytes))
+                    ):
+                        attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                        n = attr_val.shape[0]
+                        offsets = np.arange(n, dtype=np.uint64) * np.uint64(
+                            attr_val.strides[0]
+                        )
+                        buffer = attr_val.ravel().view(np.uint8)
+                    else:
+                        buffer, offsets = array_to_buffer(attr_val, True, False)
                 except Exception as exc:
                     raise type(exc)(
                         f"Failed to convert buffer for attribute: '{attr.name}'"
