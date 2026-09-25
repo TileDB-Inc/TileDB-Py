@@ -38,20 +38,37 @@ function(fetch_tiledb_release_list VERSION)
                 set(VERSION latest)
         endif()
 
+        set(RELLIST_URL ${UPSTREAM_URL}/${VERSION}/releases.csv)
         if(EXPECTED_HASH)
-                file(DOWNLOAD
-                        ${UPSTREAM_URL}/${VERSION}/releases.csv
-                        ${CMAKE_CURRENT_BINARY_DIR}/releases.csv
-                        SHOW_PROGRESS
-                        EXPECTED_HASH ${EXPECTED_HASH}
-                )
+                set(HASH_ARGS EXPECTED_HASH ${EXPECTED_HASH})
         else()
                 message(WARNING "Downloading release list without SHA checksum!")
+        endif()
+
+        # A failed download leaves an empty file and no error, which surfaces
+        # later as an unrelated one, and a CI matrix fetches this from dozens of
+        # jobs at once. So a failure is retried, then reported as what it is.
+        set(ATTEMPTS 3)
+        foreach(ATTEMPT RANGE 1 ${ATTEMPTS})
                 file(DOWNLOAD
-                        ${UPSTREAM_URL}/${VERSION}/releases.csv
+                        ${RELLIST_URL}
                         ${CMAKE_CURRENT_BINARY_DIR}/releases.csv
                         SHOW_PROGRESS
+                        ${HASH_ARGS}
+                        STATUS DOWNLOAD_STATUS
                 )
+                list(GET DOWNLOAD_STATUS 0 DOWNLOAD_CODE)
+                list(GET DOWNLOAD_STATUS 1 DOWNLOAD_MESSAGE)
+                if(DOWNLOAD_CODE EQUAL 0)
+                        break()
+                endif()
+                message(WARNING "Downloading ${RELLIST_URL} failed (attempt ${ATTEMPT} of ${ATTEMPTS}): ${DOWNLOAD_MESSAGE}")
+                if(ATTEMPT LESS ATTEMPTS)
+                        execute_process(COMMAND ${CMAKE_COMMAND} -E sleep 5)
+                endif()
+        endforeach()
+        if(NOT DOWNLOAD_CODE EQUAL 0)
+                message(FATAL_ERROR "Could not download the TileDB release list from ${RELLIST_URL}: ${DOWNLOAD_MESSAGE}")
         endif()
 
         file(STRINGS
