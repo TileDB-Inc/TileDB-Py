@@ -1419,6 +1419,39 @@ class TestVarlen(DiskTestCase):
             # can't use assert_array_equal w/ object array
             self.assertTrue(all(np.array_equal(x, A[i]) for i, x in enumerate(T_)))
 
+    def test_varlen_write_homogeneous_subarrays(self):
+        """Test writing var-length attributes where all sub-arrays have the
+        same length. numpy coalesces these into a 2D array which previously
+        caused errors. See https://github.com/TileDB-Inc/TileDB-Py/issues/494
+        """
+        # All sub-arrays have length 3 — numpy will coalesce into shape (4, 3)
+        A = np.array(
+            [
+                np.array([1, 2, 9], dtype=np.int64),
+                np.array([3, 4, 5], dtype=np.int64),
+                np.array([7, 8, 6], dtype=np.int64),
+                np.array([10, 11, 12], dtype=np.int64),
+            ],
+            dtype="O",
+        )
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 4), tile=4))
+        att = tiledb.Attr(name="val", dtype=np.int64, var=True)
+        schema = tiledb.ArraySchema(dom, (att,))
+        tiledb.DenseArray.create(self.path("homogeneous_varlen"), schema)
+
+        with tiledb.DenseArray(self.path("homogeneous_varlen"), mode="w") as T:
+            T[:] = {"val": A}
+
+        with tiledb.DenseArray(self.path("homogeneous_varlen"), mode="r") as T:
+            res = T[:]["val"]
+            expected = np.empty(4, dtype=object)
+            expected[0] = np.array([1, 2, 9], dtype=np.int64)
+            expected[1] = np.array([3, 4, 5], dtype=np.int64)
+            expected[2] = np.array([7, 8, 6], dtype=np.int64)
+            expected[3] = np.array([10, 11, 12], dtype=np.int64)
+            assert_subarrays_equal(res, expected)
+
     def test_varlen_write_floats_2d(self):
         A = np.array(
             [np.random.rand(x) for x in np.arange(1, 10)], dtype=object
@@ -2248,6 +2281,53 @@ class TestSparseArray(DiskTestCase):
             assert_subarrays_equal(res[""], data)
             assert_unordered_equal(res["__dim_0"], c1)
             assert_unordered_equal(res["__dim_1"], c2)
+
+    @pytest.mark.parametrize(
+        "dtype,use_object_dtype",
+        [
+            (np.int64, True),
+            (np.int64, False),
+            (np.int32, True),
+            (np.float32, True),
+            (np.float64, False),
+            (np.uint32, True),
+        ],
+    )
+    def test_sparse_varlen_homogeneous_subarrays(
+        self, fx_sparse_cell_order, dtype, use_object_dtype
+    ):
+        """Test writing var-length attributes where all sub-arrays have the
+        same length. numpy coalesces these into a 2D array which previously
+        caused a 'value length does not match coordinate length' error.
+        See https://github.com/TileDB-Inc/TileDB-Py/issues/494
+        """
+        path = self.path("test_sparse_varlen_homogeneous_subarrays")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 10), dtype=np.int64))
+        att = tiledb.Attr(name="val", var=True, dtype=dtype)
+        schema = tiledb.ArraySchema(
+            dom, (att,), sparse=True, cell_order=fx_sparse_cell_order
+        )
+        tiledb.SparseArray.create(path, schema)
+
+        a = np.array([1, 2, 9], dtype=dtype)
+        b = np.array([3, 4, 5], dtype=dtype)
+
+        if use_object_dtype:
+            # User explicitly passes dtype='O'; becomes 2D after dtype conversion
+            vals = np.array([a, b], dtype="O")
+        else:
+            # User has no control over dtype; numpy coalesces to 2D native
+            vals = np.array([a, b])
+
+        with tiledb.SparseArray(path, "w") as A:
+            A[[1, 2]] = {"val": vals}
+
+        with tiledb.SparseArray(path, "r") as A:
+            res = A[:]
+            expected = np.empty(2, dtype=object)
+            expected[0] = a
+            expected[1] = b
+            assert_subarrays_equal(res["val"], expected)
 
     def test_sparse_mixed_domain_uint_float64(self, fx_sparse_cell_order):
         path = self.path("mixed_domain_uint_float64")
