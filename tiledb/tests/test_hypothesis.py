@@ -11,7 +11,7 @@ pd = pytest.importorskip("pandas")
 tm = pd._testing
 
 
-@pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+@pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
 @pytest.mark.parametrize("mode", ["np", "df"])
 @hp.settings(deadline=None, verbosity=hp.Verbosity.verbose)
 @hp.given(st.binary())

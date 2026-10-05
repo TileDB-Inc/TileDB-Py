@@ -122,6 +122,15 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
         attr_val = val[name]
 
         try:
+            # Capture null mask before np.asarray() loses pandas NA info
+            if (
+                attr.isvar
+                and attr.isnullable
+                and name not in nullmaps
+                and hasattr(attr_val, "isna")
+            ):
+                nullmaps[name] = (~attr_val.isna()).to_numpy(dtype=np.uint8)
+
             # ensure that the value is array-convertible, for example: pandas.Series
             attr_val = np.asarray(attr_val)
 
