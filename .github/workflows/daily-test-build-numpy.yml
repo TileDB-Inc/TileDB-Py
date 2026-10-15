@@ -86,8 +86,13 @@ jobs:
         run: pip install --verbose .[test]
 
       - name: Install Numpy
+        env:
+          NUMPY_VERSION: ${{ matrix.py_np_combo.numpy-version }}
         run: |
-          pip install numpy==${{ matrix.py_np_combo.numpy-version }}
+          deps=("numpy==$NUMPY_VERSION")
+          # pyarrow 26 needs NumPy 2 but does not declare it, so pip cannot pick an older one itself.
+          if [[ "$NUMPY_VERSION" == 1.* ]]; then deps+=("pyarrow<26"); fi
+          pip install "${deps[@]}"
 
       - name: Print installed Python dependencies
         run: pip list
