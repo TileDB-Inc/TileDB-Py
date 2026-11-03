@@ -134,6 +134,13 @@ def _infer_dtype_from_pandas(values, column_name):
         )
 
 
+def _is_str_dtype(dtype):
+    """Whether dtype is pandas' str dtype, which holds missing values as NaN."""
+    from pandas import NA, StringDtype
+
+    return isinstance(dtype, StringDtype) and dtype.na_value is not NA
+
+
 @dataclass(frozen=True)
 class EnumerationInfo:
     dtype: np.dtype
@@ -152,7 +159,7 @@ class ColumnInfo:
 
     @classmethod
     def from_values(cls, array_like, varlen_types=()):
-        from pandas import CategoricalDtype, StringDtype
+        from pandas import CategoricalDtype
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -169,12 +176,9 @@ class ColumnInfo:
                 raise NotImplementedError(
                     f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
-        elif hasattr(array_like, "dtype") and isinstance(array_like.dtype, StringDtype):
+        elif hasattr(array_like, "dtype") and _is_str_dtype(array_like.dtype):
             info = cls.from_dtype(array_like.dtype, array_like.name)
-            # the NaN-backed "str" dtype holds missing values without being a
-            # nullable dtype; write it as a nullable attribute only when
-            # missing values are actually present
-            if not info.nullable and array_like.isna().any():
+            if array_like.isna().any():
                 info = replace(info, nullable=True)
             return info
         elif hasattr(array_like, "dtype") and isinstance(
@@ -206,7 +210,6 @@ class ColumnInfo:
 
     @classmethod
     def from_dtype(cls, dtype, column_name, varlen_types=()):
-        from pandas import NA, StringDtype
         from pandas.api import types as pd_types
 
         if isinstance(dtype, str) and dtype == "ascii":
@@ -218,17 +221,9 @@ class ColumnInfo:
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 
-        # pandas string types: the NA-backed "string" dtype maps to a nullable
-        # attribute, while the NaN-backed "str" dtype (the default for strings
-        # since pandas 3) behaves like plain str/object columns
-        if isinstance(dtype, StringDtype):
-            nullable = dtype.na_value is NA
-            return cls(
-                np.dtype(np.str_),
-                repr="string" if nullable else None,
-                var=True,
-                nullable=nullable,
-            )
+        # like an object column of strings, whatever the pandas version
+        if _is_str_dtype(dtype):
+            return cls(np.dtype(np.str_), var=True)
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
@@ -285,7 +280,7 @@ class ColumnInfo:
         raise NotImplementedError(f"{dtype} dtype not supported (column {column_name})")
 
 
-def _get_column_infos(df, column_types, varlen_types):
+def _get_column_infos(df, column_types, varlen_types, fillna):
     column_infos = {}
     for name, column in df.items():
         if column_types and name in column_types:
@@ -293,6 +288,9 @@ def _get_column_infos(df, column_types, varlen_types):
                 column_types[name], name, varlen_types
             )
         else:
+            # filling can make a str column non-nullable
+            if fillna and name in fillna:
+                column = column.fillna(fillna[name])
             column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos
 
@@ -654,7 +652,10 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     dataframe.columns = dataframe.columns.map(str)
     column_infos = _get_column_infos(
-        dataframe, tiledb_args.get("column_types"), tiledb_args.get("varlen_types")
+        dataframe,
+        tiledb_args.get("column_types"),
+        tiledb_args.get("varlen_types"),
+        tiledb_args.get("fillna"),
     )
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):

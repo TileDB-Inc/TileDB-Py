@@ -11,6 +11,7 @@ import numpy as np
 import pyarrow
 import pytest
 from numpy.testing import assert_array_equal
+from packaging.version import Version
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
@@ -212,19 +213,22 @@ class TestColumnInfo(DiskTestCase):
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
             pytest.raises(NotImplementedError, ColumnInfo.from_values, pd.Series(s))
 
-    def test_string_dtype(self):
-        # Auto-inferred str type: non-nullable when data has no nulls
-        info = ColumnInfo.from_values(pd.Series(["hello", "world"]))
-        assert info.dtype == np.dtype("<U")
-        assert info.var is True
-        assert info.nullable is False
-        # With nulls: pandas 3+ auto-infers StringDtype which preserves null info;
-        # pandas 2 uses object dtype where null detection happens in the write path
-        s = pd.Series(["hello", None])
-        info = ColumnInfo.from_values(s)
-        assert info.dtype == np.dtype("<U")
-        assert info.var is True
-        assert info.nullable is isinstance(s.dtype, pd.StringDtype)
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
+    def test_str_dtype(self):
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        for info in [
+            ColumnInfo.from_dtype(str_dtype, "foo"),
+            ColumnInfo.from_values(pd.Series(["hello", "world"])),
+            ColumnInfo.from_values(pd.Series(["hello", "world"], dtype=str_dtype)),
+        ]:
+            self.assertColumnInfo(info, np.dtype("<U"))
+            assert info.var
+        info = ColumnInfo.from_values(pd.Series(["hello", None], dtype=str_dtype))
+        self.assertColumnInfo(info, np.dtype("<U"), info_nullable=True)
+        assert info.var
 
     unsupported_type_specs = [
         [np.float16, "f2"],
@@ -638,6 +642,42 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri) as A:
             tm.assert_frame_equal(A.df[:], df)
             tm.assert_frame_equal(A.query(use_arrow=False).df[:], df)
+
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
+    def test_dataframe_str_dtype_roundtrip(self):
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        df = pd.DataFrame(
+            {
+                "full": pd.Series(["a", "bb", "ccc"], dtype=str_dtype),
+                "missing": pd.Series(["a", None, "ccc"], dtype=str_dtype),
+            }
+        )
+        uri = self.path("df_str_dtype_roundtrip")
+        tiledb.from_pandas(uri, df)
+
+        with tiledb.open(uri) as A:
+            obj_uri = self.path("df_object_str_roundtrip")
+            tiledb.from_pandas(obj_uri, df[["full"]].astype(object))
+            with tiledb.open(obj_uri) as B:
+                assert A.attr("full") == B.attr("full")
+            assert A.attr("missing").isnullable
+            assert "__pandas_attribute_repr" not in A.meta
+
+            res = A.df[:]
+            assert res["full"].tolist() == ["a", "bb", "ccc"]
+            assert res["missing"].isna().tolist() == [False, True, False]
+
+    def test_fillna_str_column_is_not_nullable(self):
+        uri = self.path("fillna_str_column")
+        df = pd.DataFrame({"a": ["x", None, "z"]})
+        tiledb.from_pandas(uri, df, fillna={"a": ""})
+
+        with tiledb.open(uri) as A:
+            assert not A.attr("a").isnullable
+            assert A.df[:]["a"].tolist() == ["x", "", "z"]
 
     def test_dataframe_set_index_dims(self):
         uri = self.path("df_set_index_dims")
