@@ -1,3 +1,4 @@
+import ast
 import string
 
 import numpy as np
@@ -792,14 +793,16 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond="attr.one < 6")[:]
+            node = ast.dump(ast.parse("attr.one", mode="eval").body)
             assert (
-                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='one', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                f'TileDBError: Unhandled dot operator in {node} -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr("...")`, e.g. `attr("orig.ident")`'
                 in str(exc_info.value)
             )
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond="attr.two >= 6")[:]
+            node = ast.dump(ast.parse("attr.two", mode="eval").body)
             assert (
-                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='two', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                f'TileDBError: Unhandled dot operator in {node} -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr("...")`, e.g. `attr("orig.ident")`'
                 in str(exc_info.value)
             )
             with pytest.raises(tiledb.TileDBError) as exc_info:
