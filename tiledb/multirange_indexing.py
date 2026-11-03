@@ -873,6 +873,8 @@ def _update_df_from_meta(
     array_meta: Metadata,
     index_col: Union[List[str], bool, None] = True,
 ) -> "pandas.DataFrame":
+    from pandas.api import types as pd_types
+
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         attr_dtypes = json.loads(array_meta["__pandas_attribute_repr"])
@@ -889,19 +891,13 @@ def _update_df_from_meta(
                 col_dtypes[name] = dtype
 
     for name, dtype in col_dtypes.items():
-        # str/bytes dimensions are always written as ASCII bytes and, depending
-        # on the read path, come back as either bytes or str; restore the type
-        # they were written with. astype with the zero-width '<U0'/'|S0' dtypes
-        # stored in the metadata used to do this on pandas < 3, but on
-        # pandas >= 3 it produces object or fixed-width bytes columns instead.
+        # str and bytes dims are stored as ASCII and read back as either
         if dtype == "<U0":
-            if len(df) and isinstance(df[name].iat[0], bytes):
-                df[name] = df[name].str.decode("utf-8")
+            df[name] = df[name].astype(str)
         elif dtype == "|S0":
-            if len(df) and not isinstance(df[name].iat[0], bytes):
+            if pd_types.infer_dtype(df[name]) == "string":
                 df[name] = df[name].str.encode("utf-8")
-        # skip columns that already have their target dtype: casting them
-        # would needlessly copy the data on pandas < 3
+        # per column: astype on the frame copies every column on pandas 2
         elif str(df[name].dtype) != dtype:
             df[name] = df[name].astype(dtype)
 

@@ -1,5 +1,6 @@
 import copy
 import glob
+import json
 import os
 import random
 import string
@@ -646,17 +647,14 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
 
     @pytest.mark.parametrize("index_data", [["aa", "b"], [b"aa", b"b"]])
-    def test_dataframe_str_dim_df_roundtrip(self, index_data):
-        # both str and bytes dimensions are stored as ASCII bytes; on read the
-        # type they were written with must be restored, on both read paths
-        uri = self.path("df_str_dim_df_roundtrip")
-
+    @pytest.mark.parametrize("use_arrow", [True, False])
+    def test_dataframe_str_dim_roundtrip(self, index_data, use_arrow):
+        uri = self.path("df_str_dim_roundtrip")
         df = pd.DataFrame({"data": [1.0, 2.0]}, index=pd.Index(index_data, name="idx"))
         tiledb.from_pandas(uri, df, sparse=True)
 
         with tiledb.open(uri) as A:
-            tm.assert_frame_equal(A.df[:], df)
-            tm.assert_frame_equal(A.query(use_arrow=False).df[:], df)
+            tm.assert_frame_equal(A.query(use_arrow=use_arrow).df[:], df)
 
     @pytest.mark.skipif(
         Version(pd.__version__) < Version("2.3"),
@@ -693,6 +691,17 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri) as A:
             assert not A.attr("a").isnullable
             assert A.df[:]["a"].tolist() == ["x", "", "z"]
+
+    def test_df_casts_only_the_columns_whose_dtype_differs(self):
+        from tiledb.multirange_indexing import _update_df_from_meta
+
+        df = pd.DataFrame({"x": np.arange(3), "b": np.array([0, 1, 0], np.uint8)})
+        x = df["x"].to_numpy()
+        meta = {"__pandas_attribute_repr": json.dumps({"b": "bool"})}
+
+        res = _update_df_from_meta(df, meta, index_col=False)
+        assert res["b"].dtype == bool
+        assert np.shares_memory(res["x"].to_numpy(), x)
 
     def test_dataframe_set_index_dims(self):
         uri = self.path("df_set_index_dims")
