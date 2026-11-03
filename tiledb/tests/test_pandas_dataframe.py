@@ -703,6 +703,19 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         assert res["b"].dtype == bool
         assert np.shares_memory(res["x"].to_numpy(), x)
 
+    @pytest.mark.parametrize("index", [["k"], ["k", "k2"]])
+    def test_df_sets_the_index_without_copying(self, index):
+        from tiledb.multirange_indexing import _update_df_from_meta
+
+        df = pd.DataFrame({"k": [1, 2], "k2": [3, 4], "x": [5, 6]})
+        x = df["x"].to_numpy()
+        meta = {"__pandas_index_dims": json.dumps(dict.fromkeys(index, "int64"))}
+
+        res = _update_df_from_meta(df, meta)
+        assert list(res.index.names) == index
+        assert isinstance(res.index, pd.MultiIndex) == (len(index) > 1)
+        assert np.shares_memory(res["x"].to_numpy(), x)
+
     @pytest.mark.parametrize("sparse", [True, False])
     def test_write_series_with_missing_strings(self, sparse):
         uri = self.path("write_series_with_missing_strings")

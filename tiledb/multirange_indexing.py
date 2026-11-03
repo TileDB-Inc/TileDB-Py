@@ -868,6 +868,18 @@ def _get_empty_results(
     return result_dict
 
 
+def _set_index(df, names):
+    import pandas
+
+    names = [names] if isinstance(names, str) else list(names)
+    columns = [df.pop(name) for name in names]
+    if len(columns) == 1:
+        df.index = pandas.Index(columns[0])
+    else:
+        df.index = pandas.MultiIndex.from_arrays(columns, names=names)
+    return df
+
+
 def _update_df_from_meta(
     df: "pandas.DataFrame",
     array_meta: Metadata,
@@ -897,7 +909,6 @@ def _update_df_from_meta(
         elif dtype == "|S0":
             if pd_types.infer_dtype(df[name]) == "string":
                 df[name] = df[name].str.encode("utf-8")
-        # per column: astype on the frame copies every column on pandas 2
         elif str(df[name].dtype) != dtype:
             df[name] = df[name].astype(dtype)
 
@@ -905,10 +916,10 @@ def _update_df_from_meta(
         if index_col is not True:
             # if we have a query with index_col set, then override any
             # index information saved with the array.
-            df = df.set_index(index_col)
+            df = _set_index(df, index_col)
         elif index_cols:
             # set index the index names that exist as columns
-            df = df.set_index(index_cols)
+            df = _set_index(df, index_cols)
 
             # rename __tiledb_rows to None
             if "__tiledb_rows" in index_cols:
