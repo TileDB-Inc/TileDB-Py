@@ -977,7 +977,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             date_format="%Y-%m-%d %H:%M:%S.%f",
             sparse=True,
             allows_duplicates=True,
-            float_precision="round_trip",
+            # deprecated in pandas 3.1
+            **(
+                {"float_precision": "round_trip"}
+                if Version(pd.__version__) < Version("3.1")
+                else {}
+            ),
         )
 
         with tiledb.open(tmp_array2b) as A:
@@ -2091,8 +2096,9 @@ def test_datetime64_days_dtype_read_sc25572(checked_path):
         assert_dict_arrays_equal(array[:], data)
         df_received = array.df[:]
         df_received = df_received.set_index("d1")
-        # TileDB returns datetime.date objects for datetime64[D], convert both to strings
-        tm.assert_frame_equal(original_df.astype(str), df_received.astype(str))
+        # days are read back as dates
+        df_received["Attr1"] = df_received["Attr1"].astype("datetime64[ns]")
+        tm.assert_frame_equal(original_df, df_received, check_dtype=False)
 
 
 def test_datetime64_days_dtype_write_sc25572(checked_path):
