@@ -40,12 +40,17 @@ import tiledb
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas is required for dataframe functionality.
-                  Please `pip install pandas` to proceed."""
+    pd_error = """Pandas version >= 2.0 required for dataframe functionality.
+                  Please `pip install pandas>=2.0` to proceed."""
 
     try:
-        import pandas
+        import pandas as pd
     except ImportError:
+        raise Exception(pd_error)
+
+    from packaging.version import Version
+
+    if Version(pd.__version__) < Version("2.0"):
         raise Exception(pd_error)
 
 

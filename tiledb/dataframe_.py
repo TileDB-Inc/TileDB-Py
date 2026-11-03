@@ -15,18 +15,26 @@ from .subarray import Subarray
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas is required for dataframe functionality.
-                  Please `pip install pandas` to proceed."""
-    pa_error = """PyArrow is suggested for dataframe functionality.
-                  Please `pip install pyarrow`."""
+    pd_error = """Pandas version >= 2.0 required for dataframe functionality.
+                  Please `pip install pandas>=2.0` to proceed."""
+    pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
+                  Please `pip install pyarrow>=1.0`."""
 
     try:
-        import pandas
+        import pandas as pd
     except ImportError:
         raise Exception(pd_error)
 
+    from packaging.version import Version
+
+    if Version(pd.__version__) < Version("2.0"):
+        raise Exception(pd_error)
+
     try:
-        import pyarrow
+        import pyarrow as pa
+
+        if Version(pa.__version__) < Version("1.0"):
+            warnings.warn(pa_error)
     except ImportError:
         warnings.warn(pa_error)
 

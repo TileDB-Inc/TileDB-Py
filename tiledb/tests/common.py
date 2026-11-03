@@ -26,11 +26,14 @@ SUPPORTED_DATETIME64_DTYPES = tuple(
 
 def has_pandas():
     try:
-        import pandas
-
-        return True
+        import pandas as pd
     except ImportError:
         return False
+
+    if Version(pd.__version__) < Version("2.0"):
+        return False
+
+    return True
 
 
 def has_pyarrow():

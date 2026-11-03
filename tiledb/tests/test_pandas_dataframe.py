@@ -29,7 +29,7 @@ from .common import (
 from .datatypes import RaggedDtype
 
 if not has_pandas():
-    pytest.skip("pandas not installed", allow_module_level=True)
+    pytest.skip("pandas>=2.0 not installed", allow_module_level=True)
 else:
     import pandas as pd
 
@@ -1263,7 +1263,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         check_array(tmp_array, copy.deepcopy(df))
 
         ### Test 2
-        # Test roundtrip a Int64Dtype in newer pandas versions
+        # Test roundtrip a Int64Dtype
         tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
         df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
         df2.loc[4] = None
@@ -1271,18 +1271,17 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df2.to_csv(fio, index=False)
 
-        if hasattr(pd, "Int64Dtype"):
-            tmp_array2 = os.path.join(tmp_dir, "array2")
-            tiledb.from_csv(
-                tmp_array2,
-                tmp_csv2,
-                fillna={"v": 0},
-                column_types={"v": pd.Int64Dtype()},
-                sparse=True,
-            )
-            df_to_check = copy.deepcopy(df2)
-            tiledb.open_dataframe(tmp_array2)
-            check_array(tmp_array2, df_to_check)
+        tmp_array2 = os.path.join(tmp_dir, "array2")
+        tiledb.from_csv(
+            tmp_array2,
+            tmp_csv2,
+            fillna={"v": 0},
+            column_types={"v": pd.Int64Dtype()},
+            sparse=True,
+        )
+        df_to_check = copy.deepcopy(df2)
+        tiledb.open_dataframe(tmp_array2)
+        check_array(tmp_array2, df_to_check)
 
         col_size = 10
 

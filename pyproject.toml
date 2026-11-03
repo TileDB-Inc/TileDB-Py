@@ -57,7 +57,7 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
-    "pandas",
+    "pandas>=2.0",
     "dask[distributed]",
 ]
 

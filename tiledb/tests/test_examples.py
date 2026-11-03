@@ -43,7 +43,7 @@ class ExamplesTest:
             ]
         ]
         if not has_pandas() and path in requires_pd:
-            pytest.mark.skip("pandas not installed")
+            pytest.mark.skip("pandas>=2.0 not installed")
         else:
             with tempfile.TemporaryDirectory() as tmpdir:
                 try:
@@ -73,9 +73,9 @@ class ExamplesTest:
         if failures:
             stderr = capsys.readouterr().out
             if "No module named 'pandas'" in stderr or (
-                "Pandas is required for dataframe functionality" in stderr
+                "Pandas version >= 2.0 required for dataframe functionality" in stderr
                 and not has_pandas()
             ):
-                pytest.skip("pandas not installed")
+                pytest.skip("pandas>=2.0 not installed")
             else:
                 pytest.fail(stderr)
