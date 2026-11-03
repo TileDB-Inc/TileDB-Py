@@ -10,6 +10,7 @@ from .array import (
     check_for_floats,
     index_as_tuple,
     index_domain_subarray,
+    nullable_var_values,
     replace_ellipsis,
     replace_scalars_slice,
 )
@@ -479,20 +480,10 @@ class DenseArrayImpl(Array):
 
                 try:
                     if attr.isvar:
-                        # Capture null mask before np.asarray() loses pandas NA info
-                        if (
-                            attr.isnullable
-                            and name not in nullmaps
-                            and hasattr(attr_val, "isna")
-                        ):
-                            nullmaps[name] = (~attr_val.isna()).to_numpy(dtype=np.uint8)
-
+                        if attr.isnullable and name not in nullmaps:
+                            attr_val, nullmaps[name] = nullable_var_values(attr_val)
                         # ensure that the value is array-convertible, for example: pandas.Series
                         attr_val = np.asarray(attr_val)
-                        if attr.isnullable and name not in nullmaps:
-                            nullmaps[name] = np.array(
-                                [int(v is not None) for v in attr_val], dtype=np.uint8
-                            )
                     else:
                         if np.issubdtype(attr.dtype, np.bytes_) and not (
                             np.issubdtype(attr_val.dtype, np.bytes_)

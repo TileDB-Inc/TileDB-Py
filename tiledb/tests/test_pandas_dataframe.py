@@ -703,6 +703,26 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         assert res["b"].dtype == bool
         assert np.shares_memory(res["x"].to_numpy(), x)
 
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_write_series_with_missing_strings(self, sparse):
+        uri = self.path("write_series_with_missing_strings")
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(tiledb.Dim("d", domain=(1, 3), dtype="int64")),
+            [tiledb.Attr("a", dtype=str, var=True, nullable=True)],
+            sparse=sparse,
+        )
+        tiledb.Array.create(uri, schema)
+
+        data = pd.Series(["a", None, "c"], dtype="string")
+        with tiledb.open(uri, "w") as A:
+            if sparse:
+                A[[1, 2, 3]] = {"a": data}
+            else:
+                A[:] = {"a": data}
+
+        with tiledb.open(uri) as A:
+            assert_array_equal(A[:]["a"].mask, [False, True, False])
+
     def test_dataframe_set_index_dims(self):
         uri = self.path("df_set_index_dims")
 

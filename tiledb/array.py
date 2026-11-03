@@ -114,6 +114,15 @@ def check_for_floats(selection):
     return False
 
 
+def nullable_var_values(values):
+    """Return values with None for each missing one, and their validity map."""
+    if hasattr(values, "isna"):
+        validity = np.asarray(~values.isna(), dtype=np.uint8)
+        return values.to_numpy(dtype=object, na_value=None), validity
+    values = np.asarray(values)
+    return values, np.array([int(v is not None) for v in values], dtype=np.uint8)
+
+
 def index_domain_subarray(array, dom, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
