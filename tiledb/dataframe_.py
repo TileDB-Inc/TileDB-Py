@@ -663,6 +663,22 @@ def _from_pandas(uri, dataframe, tiledb_args):
         tiledb_args.get("varlen_types"),
         tiledb_args.get("fillna"),
     )
+    if not create_array:
+        # appended values follow the nullability the array already has
+        fillna = tiledb_args.get("fillna") or {}
+        for name, info in column_infos.items():
+            if schema.has_attr(name):
+                nullable = schema.attr(name).isnullable
+                if (
+                    info.nullable
+                    and not nullable
+                    and name not in fillna
+                    and dataframe[name].isna().any()
+                ):
+                    raise tiledb.TileDBError(
+                        f"Cannot write missing values to non-nullable attribute '{name}'"
+                    )
+                column_infos[name] = replace(info, nullable=nullable)
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):
         if create_array:

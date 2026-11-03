@@ -716,6 +716,38 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         assert res["b"].dtype == bool
         assert np.shares_memory(res["x"].to_numpy(), x)
 
+    def test_append_extension_dtype_to_non_nullable_attr(self):
+        uri = self.path("append_extension_dtype")
+        df = pd.DataFrame({"v": np.array([1, 2], dtype=np.int64)})
+        tiledb.from_pandas(uri, df, sparse=True, full_domain=True)
+
+        more = pd.DataFrame({"v": pd.array([3, 4], dtype="Int64")}, index=[2, 3])
+        tiledb.from_pandas(uri, more, mode="append")
+        with tiledb.open(uri) as A:
+            assert not A.attr("v").isnullable
+            assert A.df[:]["v"].tolist() == [1, 2, 3, 4]
+
+        holes = pd.DataFrame({"v": pd.array([5, None], dtype="Int64")}, index=[4, 5])
+        with pytest.raises(tiledb.TileDBError, match="non-nullable attribute 'v'"):
+            tiledb.from_pandas(uri, holes, mode="append")
+
+    def test_append_nan_and_nat_to_non_nullable_attrs(self):
+        uri = self.path("append_nan_and_nat")
+        df = pd.DataFrame(
+            {"f": [1.0, 2.0], "t": pd.to_datetime(["2020-01-01", "2020-01-02"])}
+        )
+        tiledb.from_pandas(uri, df, sparse=True, full_domain=True)
+
+        more = pd.DataFrame(
+            {"f": [np.nan, 4.0], "t": [pd.NaT, pd.Timestamp("2020-01-04")]},
+            index=[2, 3],
+        )
+        tiledb.from_pandas(uri, more, mode="append")
+        with tiledb.open(uri) as A:
+            res = A.df[:]
+        assert np.isnan(res["f"].iloc[2])
+        assert pd.isna(res["t"].iloc[2])
+
     @pytest.mark.parametrize("index", [["k"], ["k", "k2"]])
     def test_df_sets_the_index_without_copying(self, index):
         from tiledb.multirange_indexing import _update_df_from_meta
