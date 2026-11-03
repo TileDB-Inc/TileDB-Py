@@ -1,4 +1,3 @@
-import sys
 import xml.etree.ElementTree
 
 import numpy as np
@@ -364,10 +363,7 @@ class AttributeTest(DiskTestCase):
             with pytest.raises(AttributeError) as exc:
                 A.schema.attr(0).name = "can't change"
 
-            if sys.version_info < (3, 11):
-                assert "can't set attribute" in str(exc.value)
-            else:
-                assert "object has no setter" in str(exc.value)
+            assert "object has no setter" in str(exc.value)
 
     def test_wkt_attribute(self):
         A = np.array(
