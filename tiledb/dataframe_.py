@@ -135,7 +135,6 @@ def _infer_dtype_from_pandas(values, column_name):
 
 
 def _is_str_dtype(dtype):
-    """Whether dtype is pandas' str dtype, which holds missing values as NaN."""
     from pandas import NA, StringDtype
 
     return isinstance(dtype, StringDtype) and dtype.na_value is not NA
@@ -221,7 +220,6 @@ class ColumnInfo:
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 
-        # like an object column of strings, whatever the pandas version
         if _is_str_dtype(dtype):
             return cls(np.dtype(np.str_), var=True)
 

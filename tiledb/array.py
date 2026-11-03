@@ -115,7 +115,6 @@ def check_for_floats(selection):
 
 
 def nullable_var_values(values):
-    """Return values with None for each missing one, and their validity map."""
     if hasattr(values, "isna"):
         validity = np.asarray(~values.isna(), dtype=np.uint8)
         return values.to_numpy(dtype=object, na_value=None), validity
