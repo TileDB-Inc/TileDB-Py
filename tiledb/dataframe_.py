@@ -295,7 +295,7 @@ def _get_column_infos(df, column_types, varlen_types, fillna):
             )
         else:
             # filling can make a str column non-nullable
-            if fillna and name in fillna:
+            if fillna and name in fillna and _is_str_dtype(column.dtype):
                 column = column.fillna(fillna[name])
             column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos

@@ -683,14 +683,27 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             assert res["full"].tolist() == ["a", "bb", "ccc"]
             assert res["missing"].isna().tolist() == [False, True, False]
 
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
     def test_fillna_str_column_is_not_nullable(self):
         uri = self.path("fillna_str_column")
-        df = pd.DataFrame({"a": ["x", None, "z"]})
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        df = pd.DataFrame({"a": pd.Series(["x", None, "z"], dtype=str_dtype)})
         tiledb.from_pandas(uri, df, fillna={"a": ""})
 
         with tiledb.open(uri) as A:
             assert not A.attr("a").isnullable
             assert A.df[:]["a"].tolist() == ["x", "", "z"]
+
+    def test_fillna_bytes_column(self):
+        uri = self.path("fillna_bytes_column")
+        df = pd.DataFrame({"a": [b"x", None, b"z"]})
+        tiledb.from_pandas(uri, df, fillna={"a": ""})
+
+        with tiledb.open(uri) as A:
+            assert A.df[:]["a"].tolist() == [b"x", b"", b"z"]
 
     def test_df_casts_only_the_columns_whose_dtype_differs(self):
         from tiledb.multirange_indexing import _update_df_from_meta
