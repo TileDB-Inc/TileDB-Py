@@ -624,7 +624,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             # ensure that all column which will be used as string dim index
             # is sorted, because that is how it will be returned
             if pd.api.types.is_string_dtype(df.dtypes[col]):
-                df.sort_values(col, inplace=True)
+                df = df.sort_values(col)
 
                 # also ensure that string columns are converted to bytes
                 # b/c only TILEDB_ASCII supported for string dimension
@@ -632,7 +632,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                     df[col] = [x.encode("UTF-8") for x in df[col]]
 
             new_df = df.drop_duplicates(subset=col)
-            new_df.set_index(col, inplace=True)
+            new_df = new_df.set_index(col)
 
             tiledb.from_pandas(uri, new_df, sparse=True)
 
@@ -735,7 +735,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         col_size = 10
         df = make_dataframe_basic3(col_size)
         df_dict = df.to_dict(orient="series")
-        df.set_index(["time", "double_range"], inplace=True)
+        df = df.set_index(["time", "double_range"])
 
         tiledb.from_pandas(uri, df, sparse=True)
 
@@ -904,10 +904,10 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
-        df.set_index(["time", "double_range"], inplace=True)
+        df = df.set_index(["time", "double_range"])
 
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(
@@ -931,7 +931,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         # create a duplicate value
         df.loc[0, "int_vals"] = df.int_vals[1]
-        df.sort_values("int_vals", inplace=True)
+        df = df.sort_values("int_vals")
 
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -965,7 +965,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             res_df = A.df[:]
             # the duplicate value is on the dimension and can be retrieved in arbitrary
             # order. we need to re-sort in order to compare, to avoid spurious failures.
-            res_df.sort_values("time", inplace=True)
+            res_df = res_df.sort_values("time")
             cmp_df = df.set_index("int_vals").sort_values(by="time")
             tm.assert_frame_equal(res_df, cmp_df)
 
@@ -978,7 +978,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
 
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -1065,18 +1065,18 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test mode='append' for from_csv
         tiledb.from_csv(tmp_array, tmp_csv, mode="append", row_start_idx=0)
         df2 = make_dataframe_basic3(10, time_range=(t0, t1))
-        df2.sort_values("time", inplace=True)
-        df2.set_index(["time", "double_range"], inplace=True)
+        df2 = df2.sort_values("time")
+        df2 = df2.set_index(["time", "double_range"])
 
         # Test mode='append' for from_pandas
         tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
 
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
-            df.set_index(["time", "double_range"], inplace=True)
+            df = df.set_index(["time", "double_range"])
             df_combined = pd.concat([df, df2])
-            df_combined.sort_index(level="time", inplace=True)
-            df_bk.sort_index(level="time", inplace=True)
+            df_combined = df_combined.sort_index(level="time")
+            df_bk = df_bk.sort_index(level="time")
             tm.assert_frame_equal(df_bk, df_combined)
 
     def test_dataframe_csv_schema_only_no_index(self):
@@ -1167,9 +1167,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
             df_combined = pd.concat([df, df2])
-            df_combined.reset_index(inplace=True)
+            df_combined = df_combined.reset_index()
             df_combined["index"] = list(range(20))
-            df_combined.set_index("index", inplace=True)
+            df_combined = df_combined.set_index("index")
             df_combined.index.name = None
             tm.assert_frame_equal(df_bk, df_combined)
 
@@ -1181,7 +1181,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
 
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -1202,7 +1202,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(tmp_array) as A:
             res = A[:]
             df_bk = pd.DataFrame(res)
-            df_bk.set_index(["double_range"], inplace=True)
+            df_bk = df_bk.set_index(["double_range"])
 
             df_ck = df.set_index(["double_range"])
             tm.assert_frame_equal(df_bk, df_ck)
@@ -1472,7 +1472,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             ],
             axis=1,
         )
-        df.set_index(["time"], inplace=True)
+        df = df.set_index(["time"])
 
         tiledb.from_pandas(uri, df, sparse=True)
         with tiledb.open(uri) as A:
@@ -1872,7 +1872,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 "flags": np.asarray([True, False]),
             }
         )
-        df.set_index(["obs_id", "var_id"], inplace=True)
+        df = df.set_index(["obs_id", "var_id"])
         tiledb.from_pandas(uri, df)
 
         with tiledb.open(uri) as A:

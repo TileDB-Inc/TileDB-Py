@@ -78,7 +78,7 @@ def generate_csvs(csv_folder, count=9, min_length=1, max_length=109):
         }
         df = pd.DataFrame.from_dict(data)
 
-        df.set_index("idx_datetime", inplace=True)
+        df = df.set_index("idx_datetime")
         return df
 
     # create list of CSV row-counts to generate
@@ -278,8 +278,8 @@ def df_from_csvs(path, **kwargs):
     df = pd.concat(csv_df_list)
 
     if idx_column is not None:
-        df.sort_values(idx_column, inplace=True)
-        df.set_index(idx_column, inplace=True)
+        df = df.sort_values(idx_column)
+        df = df.set_index(idx_column)
         df.index = df.index.astype("datetime64[ns]")
 
     return df

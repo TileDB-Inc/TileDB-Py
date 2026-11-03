@@ -905,10 +905,10 @@ def _update_df_from_meta(
         if index_col is not True:
             # if we have a query with index_col set, then override any
             # index information saved with the array.
-            df.set_index(index_col, inplace=True)
+            df = df.set_index(index_col)
         elif index_cols:
             # set index the index names that exist as columns
-            df.set_index(index_cols, inplace=True)
+            df = df.set_index(index_cols)
 
             # rename __tiledb_rows to None
             if "__tiledb_rows" in index_cols:
