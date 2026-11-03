@@ -48,10 +48,6 @@ jobs:
         with:
           arch: x64
 
-      - name: Install Ninja (VS 2022)
-        uses: seanmiddleditch/gha-setup-ninja@v4
-        if: startsWith(matrix.os, 'windows')
-
       - name: Enable vcpkg binary caching
         uses: actions/github-script@v8
         with:

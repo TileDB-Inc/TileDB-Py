@@ -68,10 +68,6 @@ jobs:
         with:
           arch: x64
 
-      - name: Install Ninja (VS 2022)
-        uses: seanmiddleditch/gha-setup-ninja@v4
-        if: startsWith(matrix.os, 'windows')
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:

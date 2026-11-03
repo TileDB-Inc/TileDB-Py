@@ -37,10 +37,6 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Install Ninja (VS 2022)
-        uses: seanmiddleditch/gha-setup-ninja@v4
-        if: matrix.os == 'windows-latest'
-
       - name: "Set CMAKE_GENERATOR"
         run: echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
         if: matrix.os == 'windows-latest'
