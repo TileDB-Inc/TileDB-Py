@@ -269,7 +269,13 @@ class ColumnInfo:
 
         # datetime types
         if pd_types.is_datetime64_any_dtype(dtype):
-            return cls(dtype)
+            unit, count = np.datetime_data(dtype)
+            if count == 1 and unit in ("s", "ms", "us", "ns"):
+                return cls(dtype)
+            else:
+                raise NotImplementedError(
+                    f"Only 's', 'ms', 'us' and 'ns' datetime64 resolutions are supported (column {column_name})"
+                )
 
         # string types
         # don't use pd_types.is_string_dtype() because it includes object types too

@@ -178,6 +178,9 @@ class TestColumnInfo(DiskTestCase):
             ([pd.Int32Dtype(), "Int32"], np.dtype("int32"), "Int32", True),
             ([pd.Int64Dtype(), "Int64"], np.dtype("int64"), "Int64", True),
             # datetime types
+            (["datetime64[s]"], np.dtype("<M8[s]"), None, False),
+            (["datetime64[ms]"], np.dtype("<M8[ms]"), None, False),
+            (["datetime64[us]"], np.dtype("<M8[us]"), None, False),
             (["datetime64[ns]"], np.dtype("<M8[ns]"), None, False),
             # string types
             ([np.str_, str], np.dtype("<U"), None, False),
@@ -234,6 +237,18 @@ class TestColumnInfo(DiskTestCase):
         [np.float16, "f2"],
         [np.complex64, "c8"],
         [np.complex128, "c16"],
+        [np.datetime64, "<M8", "datetime64"],
+        [
+            "<M8[Y]",
+            "<M8[M]",
+            "<M8[W]",
+            "<M8[h]",
+            "<M8[m]",
+            "<M8[10ns]",
+            "<M8[ps]",
+            "<M8[fs]",
+            "<M8[as]",
+        ],
     ]
     if hasattr(np, "float128"):
         unsupported_type_specs.append([np.float128, "f16"])
@@ -1495,14 +1510,20 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(uri)
 
         def try_rt(name, df, pq_args={}):
-            tdb_uri = os.path.join(uri, f"{name}.tdb")
-            pq_uri = os.path.join(uri, f"{name}.pq")
+            # int96 timestamps are read back as ns
+            for int96 in (False, True):
+                tdb_uri = os.path.join(uri, f"{name}_{int96}.tdb")
+                pq_uri = os.path.join(uri, f"{name}_{int96}.pq")
 
-            df.to_parquet(pq_uri, **pq_args)
+                df.to_parquet(pq_uri, use_deprecated_int96_timestamps=int96, **pq_args)
 
-            tiledb.from_parquet(str(tdb_uri), str(pq_uri))
-            df_bk = tiledb.open_dataframe(tdb_uri)
-            tm.assert_frame_equal(df, df_bk)
+                tiledb.from_parquet(str(tdb_uri), str(pq_uri))
+                df_bk = tiledb.open_dataframe(tdb_uri)
+                expected = df
+                if int96:
+                    datetimes = df.select_dtypes("datetime64").columns
+                    expected = df.astype(dict.fromkeys(datetimes, "datetime64[ns]"))
+                tm.assert_frame_equal(expected, df_bk)
 
         basic1 = make_dataframe_basic1()
         try_rt("basic1", basic1)
