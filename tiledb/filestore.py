@@ -1,5 +1,5 @@
 import warnings
-from typing import ByteString, Optional
+from typing import Optional, Union
 
 import tiledb.libtiledb as lt
 
@@ -21,11 +21,13 @@ class Filestore:
         self._ctx = ctx or default_ctx()
         self._filestore_uri = uri
 
-    def write(self, buffer: ByteString, mime_type: str = "AUTODETECT") -> None:
+    def write(
+        self, buffer: Union[bytes, bytearray, memoryview], mime_type: str = "AUTODETECT"
+    ) -> None:
         """
         Import data from an object that supports the buffer protocol to a Filestore Array.
 
-        :param buffer ByteString: Data of type bytes, bytearray, memoryview, etc.
+        :param buffer: Data of type bytes, bytearray, memoryview, etc.
         :param str mime_type: MIME types are "AUTODETECT" (default), "image/tiff", "application/pdf"
 
         """
