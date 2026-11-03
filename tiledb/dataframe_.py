@@ -2,7 +2,7 @@ import copy
 import json
 import os
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, List, Optional, Union
 
 import numpy as np
@@ -15,8 +15,8 @@ from .subarray import Subarray
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0,<3.0` to proceed."""
+    pd_error = """Pandas version >= 2.0 required for dataframe functionality.
+                  Please `pip install pandas>=2.0` to proceed."""
     pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
                   Please `pip install pyarrow>=1.0`."""
 
@@ -27,9 +27,7 @@ def check_dataframe_deps():
 
     from packaging.version import Version
 
-    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
-        "3.0.0.dev0"
-    ):
+    if Version(pd.__version__) < Version("2.0"):
         raise Exception(pd_error)
 
     try:
@@ -136,6 +134,12 @@ def _infer_dtype_from_pandas(values, column_name):
         )
 
 
+def _is_str_dtype(dtype):
+    from pandas import NA, StringDtype
+
+    return isinstance(dtype, StringDtype) and dtype.na_value is not NA
+
+
 @dataclass(frozen=True)
 class EnumerationInfo:
     dtype: np.dtype
@@ -171,6 +175,11 @@ class ColumnInfo:
                 raise NotImplementedError(
                     f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
+        elif hasattr(array_like, "dtype") and _is_str_dtype(array_like.dtype):
+            info = cls.from_dtype(array_like.dtype, array_like.name)
+            if array_like.isna().any():
+                info = replace(info, nullable=True)
+            return info
         elif hasattr(array_like, "dtype") and isinstance(
             array_like.dtype, CategoricalDtype
         ):
@@ -210,6 +219,9 @@ class ColumnInfo:
 
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
+
+        if _is_str_dtype(dtype):
+            return cls(np.dtype(np.str_), var=True)
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
@@ -255,11 +267,12 @@ class ColumnInfo:
 
         # datetime types
         if pd_types.is_datetime64_any_dtype(dtype):
-            if dtype == "datetime64[ns]":
+            unit, count = np.datetime_data(dtype)
+            if count == 1 and unit in ("s", "ms", "us", "ns"):
                 return cls(dtype)
             else:
                 raise NotImplementedError(
-                    f"Only 'datetime64[ns]' datetime dtype is supported (column {column_name})"
+                    f"Only 's', 'ms', 'us' and 'ns' datetime64 resolutions are supported (column {column_name})"
                 )
 
         # string types
@@ -271,7 +284,7 @@ class ColumnInfo:
         raise NotImplementedError(f"{dtype} dtype not supported (column {column_name})")
 
 
-def _get_column_infos(df, column_types, varlen_types):
+def _get_column_infos(df, column_types, varlen_types, fillna):
     column_infos = {}
     for name, column in df.items():
         if column_types and name in column_types:
@@ -279,6 +292,9 @@ def _get_column_infos(df, column_types, varlen_types):
                 column_types[name], name, varlen_types
             )
         else:
+            # filling can make a str column non-nullable
+            if fillna and name in fillna and _is_str_dtype(column.dtype):
+                column = column.fillna(fillna[name])
             column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos
 
@@ -640,8 +656,27 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     dataframe.columns = dataframe.columns.map(str)
     column_infos = _get_column_infos(
-        dataframe, tiledb_args.get("column_types"), tiledb_args.get("varlen_types")
+        dataframe,
+        tiledb_args.get("column_types"),
+        tiledb_args.get("varlen_types"),
+        tiledb_args.get("fillna"),
     )
+    if not create_array:
+        # appended values follow the nullability the array already has
+        fillna = tiledb_args.get("fillna") or {}
+        for name, info in column_infos.items():
+            if schema.has_attr(name):
+                nullable = schema.attr(name).isnullable
+                if (
+                    info.nullable
+                    and not nullable
+                    and name not in fillna
+                    and dataframe[name].isna().any()
+                ):
+                    raise tiledb.TileDBError(
+                        f"Cannot write missing values to non-nullable attribute '{name}'"
+                    )
+                column_infos[name] = replace(info, nullable=nullable)
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):
         if create_array:
@@ -978,8 +1013,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
             if "index_col" not in tiledb_args and df.index.name is None:
                 # Reset index so row_start_idx can be applied correctly
                 # (concat preserves original indices from the CSV files)
-                df.reset_index(drop=True, inplace=True)
-                df.index.name = "__tiledb_rows"
+                df.index = pandas.RangeIndex(len(df), name="__tiledb_rows")
 
             tiledb_args["row_start_idx"] = rows_written
 
@@ -1000,8 +1034,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
             if "index_col" not in tiledb_args and df.index.name is None:
                 # Reset index for each chunk so row_start_idx can be applied correctly
                 # (pandas.read_csv with chunksize preserves original row indices)
-                df.reset_index(drop=True, inplace=True)
-                df.index.name = "__tiledb_rows"
+                df.index = pandas.RangeIndex(len(df), name="__tiledb_rows")
 
             # tell from_pandas what row to start the next write
             tiledb_args["row_start_idx"] = rows_written

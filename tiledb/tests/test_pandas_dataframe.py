@@ -1,5 +1,6 @@
 import copy
 import glob
+import json
 import os
 import random
 import string
@@ -11,6 +12,7 @@ import numpy as np
 import pyarrow
 import pytest
 from numpy.testing import assert_array_equal
+from packaging.version import Version
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
@@ -29,7 +31,7 @@ from .common import (
 from .datatypes import RaggedDtype
 
 if not has_pandas():
-    pytest.skip("pandas>=1.0,<3.0 not installed", allow_module_level=True)
+    pytest.skip("pandas>=2.0 not installed", allow_module_level=True)
 else:
     import pandas as pd
 
@@ -177,6 +179,9 @@ class TestColumnInfo(DiskTestCase):
             ([pd.Int32Dtype(), "Int32"], np.dtype("int32"), "Int32", True),
             ([pd.Int64Dtype(), "Int64"], np.dtype("int64"), "Int64", True),
             # datetime types
+            (["datetime64[s]"], np.dtype("<M8[s]"), None, False),
+            (["datetime64[ms]"], np.dtype("<M8[ms]"), None, False),
+            (["datetime64[us]"], np.dtype("<M8[us]"), None, False),
             (["datetime64[ns]"], np.dtype("<M8[ns]"), None, False),
             # string types
             ([np.str_, str], np.dtype("<U"), None, False),
@@ -212,6 +217,23 @@ class TestColumnInfo(DiskTestCase):
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
             pytest.raises(NotImplementedError, ColumnInfo.from_values, pd.Series(s))
 
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
+    def test_str_dtype(self):
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        for info in [
+            ColumnInfo.from_dtype(str_dtype, "foo"),
+            ColumnInfo.from_values(pd.Series(["hello", "world"])),
+            ColumnInfo.from_values(pd.Series(["hello", "world"], dtype=str_dtype)),
+        ]:
+            self.assertColumnInfo(info, np.dtype("<U"))
+            assert info.var
+        info = ColumnInfo.from_values(pd.Series(["hello", None], dtype=str_dtype))
+        self.assertColumnInfo(info, np.dtype("<U"), info_nullable=True)
+        assert info.var
+
     unsupported_type_specs = [
         [np.float16, "f2"],
         [np.complex64, "c8"],
@@ -223,9 +245,7 @@ class TestColumnInfo(DiskTestCase):
             "<M8[W]",
             "<M8[h]",
             "<M8[m]",
-            "<M8[s]",
-            "<M8[ms]",
-            "<M8[us]",
+            "<M8[10ns]",
             "<M8[ps]",
             "<M8[fs]",
             "<M8[as]",
@@ -443,7 +463,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             times = df["time"]
             cccc = df["cccc"]
 
-            df = df.drop(columns=["time", "cccc"], axis=1)
+            df = df.drop(columns=["time", "cccc"])
             A[s_ichars, times, cccc] = df.to_dict(orient="series")
 
         with tiledb.SparseArray(uri) as A:
@@ -603,8 +623,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
             # ensure that all column which will be used as string dim index
             # is sorted, because that is how it will be returned
-            if df.dtypes[col] == "O":
-                df.sort_values(col, inplace=True)
+            if pd.api.types.is_string_dtype(df.dtypes[col]):
+                df = df.sort_values(col)
 
                 # also ensure that string columns are converted to bytes
                 # b/c only TILEDB_ASCII supported for string dimension
@@ -612,7 +632,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                     df[col] = [x.encode("UTF-8") for x in df[col]]
 
             new_df = df.drop_duplicates(subset=col)
-            new_df.set_index(col, inplace=True)
+            new_df = new_df.set_index(col)
 
             tiledb.from_pandas(uri, new_df, sparse=True)
 
@@ -625,6 +645,141 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 index = pd.Index(res.pop(col), name=col)
                 res_df = pd.DataFrame(res, index=index)
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
+
+    @pytest.mark.parametrize("index_data", [["aa", "b"], [b"aa", b"b"]])
+    @pytest.mark.parametrize("use_arrow", [True, False])
+    def test_dataframe_str_dim_roundtrip(self, index_data, use_arrow):
+        uri = self.path("df_str_dim_roundtrip")
+        df = pd.DataFrame({"data": [1.0, 2.0]}, index=pd.Index(index_data, name="idx"))
+        tiledb.from_pandas(uri, df, sparse=True)
+
+        with tiledb.open(uri) as A:
+            tm.assert_frame_equal(A.query(use_arrow=use_arrow).df[:], df)
+
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
+    def test_dataframe_str_dtype_roundtrip(self):
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        df = pd.DataFrame(
+            {
+                "full": pd.Series(["a", "bb", "ccc"], dtype=str_dtype),
+                "missing": pd.Series(["a", None, "ccc"], dtype=str_dtype),
+            }
+        )
+        uri = self.path("df_str_dtype_roundtrip")
+        tiledb.from_pandas(uri, df)
+
+        with tiledb.open(uri) as A:
+            obj_uri = self.path("df_object_str_roundtrip")
+            tiledb.from_pandas(obj_uri, df[["full"]].astype(object))
+            with tiledb.open(obj_uri) as B:
+                assert A.attr("full") == B.attr("full")
+            assert A.attr("missing").isnullable
+            assert "__pandas_attribute_repr" not in A.meta
+
+            res = A.df[:]
+            assert res["full"].tolist() == ["a", "bb", "ccc"]
+            assert res["missing"].isna().tolist() == [False, True, False]
+
+    @pytest.mark.skipif(
+        Version(pd.__version__) < Version("2.3"),
+        reason="str dtype is new in pandas 2.3",
+    )
+    def test_fillna_str_column_is_not_nullable(self):
+        uri = self.path("fillna_str_column")
+        str_dtype = pd.StringDtype(na_value=np.nan)
+        df = pd.DataFrame({"a": pd.Series(["x", None, "z"], dtype=str_dtype)})
+        tiledb.from_pandas(uri, df, fillna={"a": ""})
+
+        with tiledb.open(uri) as A:
+            assert not A.attr("a").isnullable
+            assert A.df[:]["a"].tolist() == ["x", "", "z"]
+
+    def test_fillna_bytes_column(self):
+        uri = self.path("fillna_bytes_column")
+        df = pd.DataFrame({"a": [b"x", None, b"z"]})
+        tiledb.from_pandas(uri, df, fillna={"a": ""})
+
+        with tiledb.open(uri) as A:
+            assert A.df[:]["a"].tolist() == [b"x", b"", b"z"]
+
+    def test_df_casts_only_the_columns_whose_dtype_differs(self):
+        from tiledb.multirange_indexing import _update_df_from_meta
+
+        df = pd.DataFrame({"x": np.arange(3), "b": np.array([0, 1, 0], np.uint8)})
+        x = df["x"].to_numpy()
+        meta = {"__pandas_attribute_repr": json.dumps({"b": "bool"})}
+
+        res = _update_df_from_meta(df, meta, index_col=False)
+        assert res["b"].dtype == bool
+        assert np.shares_memory(res["x"].to_numpy(), x)
+
+    def test_append_extension_dtype_to_non_nullable_attr(self):
+        uri = self.path("append_extension_dtype")
+        df = pd.DataFrame({"v": np.array([1, 2], dtype=np.int64)})
+        tiledb.from_pandas(uri, df, sparse=True, full_domain=True)
+
+        more = pd.DataFrame({"v": pd.array([3, 4], dtype="Int64")}, index=[2, 3])
+        tiledb.from_pandas(uri, more, mode="append")
+        with tiledb.open(uri) as A:
+            assert not A.attr("v").isnullable
+            assert A.df[:]["v"].tolist() == [1, 2, 3, 4]
+
+        holes = pd.DataFrame({"v": pd.array([5, None], dtype="Int64")}, index=[4, 5])
+        with pytest.raises(tiledb.TileDBError, match="non-nullable attribute 'v'"):
+            tiledb.from_pandas(uri, holes, mode="append")
+
+    def test_append_nan_and_nat_to_non_nullable_attrs(self):
+        uri = self.path("append_nan_and_nat")
+        df = pd.DataFrame(
+            {"f": [1.0, 2.0], "t": pd.to_datetime(["2020-01-01", "2020-01-02"])}
+        )
+        tiledb.from_pandas(uri, df, sparse=True, full_domain=True)
+
+        more = pd.DataFrame(
+            {"f": [np.nan, 4.0], "t": [pd.NaT, pd.Timestamp("2020-01-04")]},
+            index=[2, 3],
+        )
+        tiledb.from_pandas(uri, more, mode="append")
+        with tiledb.open(uri) as A:
+            res = A.df[:]
+        assert np.isnan(res["f"].iloc[2])
+        assert pd.isna(res["t"].iloc[2])
+
+    @pytest.mark.parametrize("index", [["k"], ["k", "k2"]])
+    def test_df_sets_the_index_without_copying(self, index):
+        from tiledb.multirange_indexing import _update_df_from_meta
+
+        df = pd.DataFrame({"k": [1, 2], "k2": [3, 4], "x": [5, 6]})
+        x = df["x"].to_numpy()
+        meta = {"__pandas_index_dims": json.dumps(dict.fromkeys(index, "int64"))}
+
+        res = _update_df_from_meta(df, meta)
+        assert list(res.index.names) == index
+        assert isinstance(res.index, pd.MultiIndex) == (len(index) > 1)
+        assert np.shares_memory(res["x"].to_numpy(), x)
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_write_series_with_missing_strings(self, sparse):
+        uri = self.path("write_series_with_missing_strings")
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(tiledb.Dim("d", domain=(1, 3), dtype="int64")),
+            [tiledb.Attr("a", dtype=str, var=True, nullable=True)],
+            sparse=sparse,
+        )
+        tiledb.Array.create(uri, schema)
+
+        data = pd.Series(["a", None, "c"], dtype="string")
+        with tiledb.open(uri, "w") as A:
+            if sparse:
+                A[[1, 2, 3]] = {"a": data}
+            else:
+                A[:] = {"a": data}
+
+        with tiledb.open(uri) as A:
+            assert_array_equal(A[:]["a"].mask, [False, True, False])
 
     def test_dataframe_set_index_dims(self):
         uri = self.path("df_set_index_dims")
@@ -658,7 +813,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         col_size = 10
         df = make_dataframe_basic3(col_size)
         df_dict = df.to_dict(orient="series")
-        df.set_index(["time", "double_range"], inplace=True)
+        df = df.set_index(["time", "double_range"])
 
         tiledb.from_pandas(uri, df, sparse=True)
 
@@ -827,10 +982,10 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
-        df.set_index(["time", "double_range"], inplace=True)
+        df = df.set_index(["time", "double_range"])
 
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(
@@ -854,7 +1009,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         # create a duplicate value
         df.loc[0, "int_vals"] = df.int_vals[1]
-        df.sort_values("int_vals", inplace=True)
+        df = df.sort_values("int_vals")
 
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -880,7 +1035,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             date_format="%Y-%m-%d %H:%M:%S.%f",
             sparse=True,
             allows_duplicates=True,
-            float_precision="round_trip",
+            # deprecated in pandas 3.1
+            **(
+                {"float_precision": "round_trip"}
+                if Version(pd.__version__) < Version("3.1")
+                else {}
+            ),
         )
 
         with tiledb.open(tmp_array2b) as A:
@@ -888,7 +1048,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             res_df = A.df[:]
             # the duplicate value is on the dimension and can be retrieved in arbitrary
             # order. we need to re-sort in order to compare, to avoid spurious failures.
-            res_df.sort_values("time", inplace=True)
+            res_df = res_df.sort_values("time")
             cmp_df = df.set_index("int_vals").sort_values(by="time")
             tm.assert_frame_equal(res_df, cmp_df)
 
@@ -901,7 +1061,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
 
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -988,18 +1148,18 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test mode='append' for from_csv
         tiledb.from_csv(tmp_array, tmp_csv, mode="append", row_start_idx=0)
         df2 = make_dataframe_basic3(10, time_range=(t0, t1))
-        df2.sort_values("time", inplace=True)
-        df2.set_index(["time", "double_range"], inplace=True)
+        df2 = df2.sort_values("time")
+        df2 = df2.set_index(["time", "double_range"])
 
         # Test mode='append' for from_pandas
         tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
 
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
-            df.set_index(["time", "double_range"], inplace=True)
+            df = df.set_index(["time", "double_range"])
             df_combined = pd.concat([df, df2])
-            df_combined.sort_index(level="time", inplace=True)
-            df_bk.sort_index(level="time", inplace=True)
+            df_combined = df_combined.sort_index(level="time")
+            df_bk = df_bk.sort_index(level="time")
             tm.assert_frame_equal(df_bk, df_combined)
 
     def test_dataframe_csv_schema_only_no_index(self):
@@ -1090,9 +1250,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
             df_combined = pd.concat([df, df2])
-            df_combined.reset_index(inplace=True)
+            df_combined = df_combined.reset_index()
             df_combined["index"] = list(range(20))
-            df_combined.set_index("index", inplace=True)
+            df_combined = df_combined.set_index("index")
             df_combined.index.name = None
             tm.assert_frame_equal(df_bk, df_combined)
 
@@ -1104,7 +1264,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.sort_values("time", inplace=True)
+        df = df.sort_values("time")
 
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
             df.to_csv(fio, index=False)
@@ -1125,7 +1285,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(tmp_array) as A:
             res = A[:]
             df_bk = pd.DataFrame(res)
-            df_bk.set_index(["double_range"], inplace=True)
+            df_bk = df_bk.set_index(["double_range"])
 
             df_ck = df.set_index(["double_range"])
             tm.assert_frame_equal(df_bk, df_ck)
@@ -1250,7 +1410,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         check_array(tmp_array, copy.deepcopy(df))
 
         ### Test 2
-        # Test roundtrip a Int64Dtype in newer pandas versions
+        # Test roundtrip a Int64Dtype
         tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
         df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
         df2.loc[4] = None
@@ -1258,18 +1418,17 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df2.to_csv(fio, index=False)
 
-        if hasattr(pd, "Int64Dtype"):
-            tmp_array2 = os.path.join(tmp_dir, "array2")
-            tiledb.from_csv(
-                tmp_array2,
-                tmp_csv2,
-                fillna={"v": 0},
-                column_types={"v": pd.Int64Dtype()},
-                sparse=True,
-            )
-            df_to_check = copy.deepcopy(df2)
-            tiledb.open_dataframe(tmp_array2)
-            check_array(tmp_array2, df_to_check)
+        tmp_array2 = os.path.join(tmp_dir, "array2")
+        tiledb.from_csv(
+            tmp_array2,
+            tmp_csv2,
+            fillna={"v": 0},
+            column_types={"v": pd.Int64Dtype()},
+            sparse=True,
+        )
+        df_to_check = copy.deepcopy(df2)
+        tiledb.open_dataframe(tmp_array2)
+        check_array(tmp_array2, df_to_check)
 
         col_size = 10
 
@@ -1396,7 +1555,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             ],
             axis=1,
         )
-        df.set_index(["time"], inplace=True)
+        df = df.set_index(["time"])
 
         tiledb.from_pandas(uri, df, sparse=True)
         with tiledb.open(uri) as A:
@@ -1443,20 +1602,20 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         self.vfs.create_dir(uri)
 
         def try_rt(name, df, pq_args={}):
-            tdb_uri = os.path.join(uri, f"{name}.tdb")
-            pq_uri = os.path.join(uri, f"{name}.pq")
+            # int96 timestamps are read back as ns
+            for int96 in (False, True):
+                tdb_uri = os.path.join(uri, f"{name}_{int96}.tdb")
+                pq_uri = os.path.join(uri, f"{name}_{int96}.pq")
 
-            df.to_parquet(
-                pq_uri,
-                # this is required to losslessly serialize timestamps
-                # until Parquet 2.0 is default.
-                use_deprecated_int96_timestamps=True,
-                **pq_args,
-            )
+                df.to_parquet(pq_uri, use_deprecated_int96_timestamps=int96, **pq_args)
 
-            tiledb.from_parquet(str(tdb_uri), str(pq_uri))
-            df_bk = tiledb.open_dataframe(tdb_uri)
-            tm.assert_frame_equal(df, df_bk)
+                tiledb.from_parquet(str(tdb_uri), str(pq_uri))
+                df_bk = tiledb.open_dataframe(tdb_uri)
+                expected = df
+                if int96:
+                    datetimes = df.select_dtypes("datetime64").columns
+                    expected = df.astype(dict.fromkeys(datetimes, "datetime64[ns]"))
+                tm.assert_frame_equal(expected, df_bk)
 
         basic1 = make_dataframe_basic1()
         try_rt("basic1", basic1)
@@ -1796,7 +1955,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 "flags": np.asarray([True, False]),
             }
         )
-        df.set_index(["obs_id", "var_id"], inplace=True)
+        df = df.set_index(["obs_id", "var_id"])
         tiledb.from_pandas(uri, df)
 
         with tiledb.open(uri) as A:
@@ -1995,9 +2154,9 @@ def test_datetime64_days_dtype_read_sc25572(checked_path):
         assert_dict_arrays_equal(array[:], data)
         df_received = array.df[:]
         df_received = df_received.set_index("d1")
-        tm.assert_frame_equal(
-            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
-        )
+        # days are read back as dates
+        df_received["Attr1"] = df_received["Attr1"].astype("datetime64[ns]")
+        tm.assert_frame_equal(original_df, df_received, check_dtype=False)
 
 
 def test_datetime64_days_dtype_write_sc25572(checked_path):
@@ -2024,9 +2183,7 @@ def test_datetime64_days_dtype_write_sc25572(checked_path):
     with tiledb.open(uri, "r") as array:
         assert_dict_arrays_equal(array[:], data)
         df_received = array.df[:]
-        tm.assert_frame_equal(
-            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
-        )
+        tm.assert_frame_equal(original_df, df_received, check_dtype=False)
 
 
 def test_datetime64_days_dtype_read_out_of_range_sc25572(checked_path):
