@@ -16,10 +16,6 @@ def tiledb_cloud_eagerly_imports_pandas() -> bool:
     if Version(tiledb.cloud.__version__) < Version("0.10.21"):
         # Old versions of tiledb-cloud will import Pandas eagerly.
         return True
-    if Version(pandas.__version__) < Version("1.5"):
-        # If an old version of Pandas is installed, tiledb-cloud needs to
-        # import it eagerly to patch it.
-        return True
     return False
 
 

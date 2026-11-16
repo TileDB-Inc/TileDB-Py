@@ -48,7 +48,9 @@ class RaggedArray(pd.api.extensions.ExtensionArray):
         return len(self._flat_arrays)
 
     def __getitem__(self, i):
-        return self._flat_arrays[i]
+        if isinstance(i, (int, np.integer)):
+            return self._flat_arrays[i]
+        return type(self)(self._flat_arrays[i], self._dtype)
 
     @property
     def dtype(self):
@@ -56,3 +58,7 @@ class RaggedArray(pd.api.extensions.ExtensionArray):
 
     def copy(self):
         return type(self)(self._flat_arrays, self._dtype)
+
+    @property
+    def ndim(self):
+        return 1

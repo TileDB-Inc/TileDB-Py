@@ -30,9 +30,7 @@ def has_pandas():
     except ImportError:
         return False
 
-    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
-        "3.0.0.dev0"
-    ):
+    if Version(pd.__version__) < Version("2.0"):
         return False
 
     return True

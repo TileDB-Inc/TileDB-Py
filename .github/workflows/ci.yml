@@ -152,6 +152,16 @@ jobs:
           cd $RUNNER_TEMP
           pytest -vv --showlocals $PROJECT_CWD
 
+      - name: "Re-run tests with pandas 2"
+        run: |
+          # where pandas 3 is installed and pandas 2 has a wheel
+          if python -c "import sys, pandas; sys.exit(int(pandas.__version__.split('.')[0]) < 3)" \
+            && pip install --only-binary=:all: "pandas>=2,<3"; then
+            PROJECT_CWD=$PWD
+            cd $RUNNER_TEMP
+            pytest -vv --showlocals $PROJECT_CWD
+          fi
+
       - name: "Re-run tests without pandas"
         run: |
           PROJECT_CWD=$PWD

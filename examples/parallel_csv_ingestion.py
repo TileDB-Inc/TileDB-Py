@@ -49,8 +49,8 @@ in_test = "PYTEST_CURRENT_TEST" in os.environ
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0,<3.0` to proceed."""
+    pd_error = """Pandas version >= 2.0 required for dataframe functionality.
+                  Please `pip install pandas>=2.0` to proceed."""
 
     try:
         import pandas as pd
@@ -59,9 +59,7 @@ def check_dataframe_deps():
 
     from packaging.version import Version
 
-    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
-        "3.0.0.dev0"
-    ):
+    if Version(pd.__version__) < Version("2.0"):
         raise Exception(pd_error)
 
 
@@ -80,7 +78,7 @@ def generate_csvs(csv_folder, count=9, min_length=1, max_length=109):
         }
         df = pd.DataFrame.from_dict(data)
 
-        df.set_index("idx_datetime", inplace=True)
+        df = df.set_index("idx_datetime")
         return df
 
     # create list of CSV row-counts to generate
@@ -280,8 +278,8 @@ def df_from_csvs(path, **kwargs):
     df = pd.concat(csv_df_list)
 
     if idx_column is not None:
-        df.sort_values(idx_column, inplace=True)
-        df.set_index(idx_column, inplace=True)
+        df = df.sort_values(idx_column)
+        df = df.set_index(idx_column)
         df.index = df.index.astype("datetime64[ns]")
 
     return df

@@ -85,7 +85,8 @@ jobs:
         run: |
           deps=("numpy==$NUMPY_VERSION")
           # pyarrow 26 needs NumPy 2 but does not declare it, so pip cannot pick an older one itself.
-          if [[ "$NUMPY_VERSION" == 1.* ]]; then deps+=("pyarrow<26"); fi
+          # pandas 3 needs NumPy 2 too, and pip keeps the pandas already installed.
+          if [[ "$NUMPY_VERSION" == 1.* ]]; then deps+=("pyarrow<26" "pandas<3"); fi
           pip install "${deps[@]}"
 
       - name: Print installed Python dependencies

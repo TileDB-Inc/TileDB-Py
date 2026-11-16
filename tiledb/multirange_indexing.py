@@ -868,11 +868,25 @@ def _get_empty_results(
     return result_dict
 
 
+def _set_index(df, names):
+    import pandas
+
+    names = [names] if isinstance(names, str) else list(names)
+    columns = [df.pop(name) for name in names]
+    if len(columns) == 1:
+        df.index = pandas.Index(columns[0])
+    else:
+        df.index = pandas.MultiIndex.from_arrays(columns, names=names)
+    return df
+
+
 def _update_df_from_meta(
     df: "pandas.DataFrame",
     array_meta: Metadata,
     index_col: Union[List[str], bool, None] = True,
 ) -> "pandas.DataFrame":
+    from pandas.api import types as pd_types
+
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         attr_dtypes = json.loads(array_meta["__pandas_attribute_repr"])
@@ -888,17 +902,24 @@ def _update_df_from_meta(
             if name in df:
                 col_dtypes[name] = dtype
 
-    if col_dtypes:
-        df = df.astype(col_dtypes, copy=False)
+    for name, dtype in col_dtypes.items():
+        # str and bytes dims are stored as ASCII and read back as either
+        if dtype == "<U0":
+            df[name] = df[name].astype(str)
+        elif dtype == "|S0":
+            if pd_types.infer_dtype(df[name]) == "string":
+                df[name] = df[name].str.encode("utf-8")
+        elif str(df[name].dtype) != dtype:
+            df[name] = df[name].astype(dtype)
 
     if index_col:
         if index_col is not True:
             # if we have a query with index_col set, then override any
             # index information saved with the array.
-            df.set_index(index_col, inplace=True)
+            df = _set_index(df, index_col)
         elif index_cols:
             # set index the index names that exist as columns
-            df.set_index(index_cols, inplace=True)
+            df = _set_index(df, index_cols)
 
             # rename __tiledb_rows to None
             if "__tiledb_rows" in index_cols:
